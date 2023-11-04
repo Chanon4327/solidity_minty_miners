@@ -77,4 +77,19 @@ contract Exchange {
     function estimateERC20TokenToProvide(uint _amountEth) public view returns (uint t) {
         return ( contractERC20TokenBalance *  _amountEth )/contractEthBalance;
     }
+
+    function withdrawLiquidity(uint _liquidityPositionsToBurn) public returns (uint, uint) {
+        uint amountEthToSend;
+        uint amountERC20ToSend;
+
+        require( _liquidityPositionsToBurn <= totalLiquidityPositions); // Caller shouldn’t be able to give up all the liquidity positions in the pool
+
+        amountEthToSend = (_liquidityPositionsToBurn * contractEthBalance) / totalLiquidityPositions;
+        amountERC20ToSend = (_liquidityPositionsToBurn * contractERC20TokenBalance) / totalLiquidityPositions;
+    
+        totalLiquidityPositions -= _liquidityPositionsToBurn; // Decrement the caller’s liquidity positions and the total liquidity positions
+        K += (contractEthBalance * contractERC20TokenBalance); // update k
+
+        return (amountEthToSend, amountERC20ToSend);
+    }
 }
