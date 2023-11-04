@@ -56,4 +56,6 @@ contract Exchange {
 
     }
 
+    function estimateEthToProvide(uint _amountERC20Token) public returns (uint) { }
+
 }
