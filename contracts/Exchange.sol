@@ -61,8 +61,10 @@ contract Exchange {
 
     }
 
-    function estimateEthToProvide(uint _amountERC20Token) public returns (uint) { }
-
+    function estimateEthToProvide(uint _amountERC20Token) public returns (uint) {
+        uint amountETH = contractEthBalance * _amountERC20Token/contractERC20TokenBalance;
+        return amountETH;
+    }
     /*
     – Users who want to provide liquidity won’t know the current ratio of the tokens in the contract so
     they’ll have to call this function to find out how much ERC-20 token to deposit if they want to
