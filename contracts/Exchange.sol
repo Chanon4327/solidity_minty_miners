@@ -24,7 +24,8 @@ contract Exchange {
     uint totalLiquidityPositions = 0;
     uint contractERC20TokenBalance = 0; // to store ERC20
     uint contractEthBalance = 0; // to store Ether
-    uint K = 0; 
+    uint K = 0;
+    mapping(address => uint) liquidityPositions;
 
     /*
     – Caller deposits Ether and ERC20 token in ratio equal to the current ratio of tokens in the contract
@@ -91,5 +92,15 @@ contract Exchange {
         K += (contractEthBalance * contractERC20TokenBalance); // update k
 
         return (amountEthToSend, amountERC20ToSend);
+    }
+
+    /*
+    - Return a uint of the amount of the caller’s liquidity positions (the uint associated to the address
+    calling in your liquidityPositions mapping) for when a user wishes to view their liquidity positions
+    */
+
+    function getMyLiquidityPositions() view public returns (uint) { 
+        // Return the liquidity position of the caller
+        return liquidityPositions[msg.sender];
     }
 }
