@@ -87,6 +87,10 @@ contract Exchange {
 
         amountEthToSend = (_liquidityPositionsToBurn * contractEthBalance) / totalLiquidityPositions;
         amountERC20ToSend = (_liquidityPositionsToBurn * contractERC20TokenBalance) / totalLiquidityPositions;
+
+        // Transfer Ether from contract to caller
+        require( token.transferFrom(address(this), msg.sender, amountEthToSend) ); 
+        require( token.transferFrom(address(this), msg.sender, amountERC20ToSend) ); 
     
         totalLiquidityPositions -= _liquidityPositionsToBurn; // Decrement the caller’s liquidity positions and the total liquidity positions
         K += (contractEthBalance * contractERC20TokenBalance); // update k
@@ -103,4 +107,5 @@ contract Exchange {
         // Return the liquidity position of the caller
         return liquidityPositions[msg.sender];
     }
+
 }
