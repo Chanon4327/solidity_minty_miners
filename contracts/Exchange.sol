@@ -8,13 +8,17 @@ import "./KorthCoin.sol";
 contract Exchange {
 
     // create instances of all tokens
-    AsaToken public asa; 
-    HawKoin public hawk; 
-    KorthCoin public korth; 
+    // AsaToken public asa; 
+    // HawKoin public hawk; 
+    // KorthCoin public korth; 
 
-    address public user;
-    constructor() {
-        user = msg.sender;
+    address public owner;
+
+    ERC20 public token;
+
+    constructor(address _erc20token) {
+        owner = msg.sender;
+        token = ERC20(_erc20token);
     }
 
     uint totalLiquidityPositions = 0;
@@ -34,7 +38,8 @@ contract Exchange {
     – Update K: K = newContractEthBalance * newContractERC20TokenBalance
     – Return a uint of the amount of liquidity positions issued
     */
-    function provideLiquidity(uint _amountERC20Token) public returns  (uint) {
+    function provideLiquidity(uint _amountERC20Token) public payable returns  (uint) {
+
 
         if (totalLiquidityPositions == 0) {
             totalLiquidityPositions = 100;
@@ -43,11 +48,11 @@ contract Exchange {
             totalLiquidityPositions = (totalLiquidityPositions * _amountERC20Token) / contractERC20TokenBalance;
         }
 
-        contractEthBalance += user.balance; // new contract EthBalance
 
-        require( asa.transferFrom(user, address(this), _amountERC20Token) );
-        require( hawk.transferFrom(user, address(this), _amountERC20Token) );
-        require( korth.transferFrom(user, address(this), _amountERC20Token) );
+
+        contractEthBalance += msg.value; // new contract EthBalance
+
+        require( token.transferFrom(msg.sender, address(this), _amountERC20Token) ); // recieve erc-20
         contractERC20TokenBalance += _amountERC20Token; // new contract ERCBalance
 
         K += (contractEthBalance * contractERC20TokenBalance);
