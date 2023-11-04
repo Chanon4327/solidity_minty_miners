@@ -65,6 +65,9 @@ contract Exchange {
 
     }
 
-    function estimateEthToProvide(uint _amountERC20Token) public returns (uint) { }
+    function estimateEthToProvide(uint _amountERC20Token) public returns (uint) {
+        uint amountETH = contractEthBalance * _amountERC20Token/contractERC20TokenBalance;
+        return amountETH;
+    }
 
 }
