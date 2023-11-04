@@ -6,10 +6,6 @@ import "./HawKoin.sol";
 import "./KorthCoin.sol";
 
 contract Exchange {
-    // Constant Address to pass to constructor
-    address constant asaAdr = 0x1A5Cf8a4611CA718B6F0218141aC0Bfa114AAf7D;
-    address constant hawkAdr = 0x42cD7B2c632E3F589933275095566DE6d8c1bfa5;
-    address constant korthAdr = 0x0B09AC43C6b788146fe0223159EcEa12b2EC6361;
 
     // create instances of all tokens
     // AsaToken public asa; 
@@ -65,9 +61,18 @@ contract Exchange {
 
     }
 
-    function estimateEthToProvide(uint _amountERC20Token) public returns (uint) {
-        uint amountETH = contractEthBalance * _amountERC20Token/contractERC20TokenBalance;
-        return amountETH;
-    }
+    function estimateEthToProvide(uint _amountERC20Token) public returns (uint) { }
 
+    /*
+    – Users who want to provide liquidity won’t know the current ratio of the tokens in the contract so
+    they’ll have to call this function to find out how much ERC-20 token to deposit if they want to
+    deposit an amount of Ether
+    – Return a uint of the amount of ERC20 token to provide to match the ratio in the contract if the
+    caller wants to provide a given amount of Ether
+    Use the above to get amountERC20 =
+    contractERC20TokenBalance * amountEth/contractEthBalance)
+    */
+    function estimateERC20TokenToProvide(uint _amountEth) public view returns (uint t) {
+        return ( contractERC20TokenBalance *  _amountEth )/contractEthBalance;
+    }
 }
