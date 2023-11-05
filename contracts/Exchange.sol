@@ -16,6 +16,12 @@ contract Exchange {
 
     ERC20 public token;
 
+    event LiquidityProvided(uint amountERC20TokenDeposited, uint amountEthDeposited, uint liquidityPositionsIssued);
+    event LiquidityWithdrew(uint amountERC20TokenWithdrew, uint amountEthWithdrew, uint liquidityPositionsBurned);
+    event SwapForEth(uint amountERC20TokenDeposited, uint amountEthWithdrew);
+    event SwapForERC20Token(uint amountERC20TokenWithdrew, uint amountEthDeposited);
+
+
     constructor(address _erc20token) {
         owner = msg.sender;
         token = ERC20(_erc20token);
@@ -43,14 +49,27 @@ contract Exchange {
 
 
     require( token.transferFrom(msg.sender, address(this), _amountERC20Token), "Unable to recieve ERC20" ); // recieve erc-20
+    // technically susceptible to re-entrancy, but it would just steal all their money up to the limit so... why?
 
-    // to precent re-entrancy, state changes are made after $$$
+        // positiong to give
+        uint toGive;
+
         if (totalLiquidityPositions == 0) {
-            totalLiquidityPositions = 100;
+            // default of 100
+            toGive = 100;
+
+            // increment total
+            totalLiquidityPositions += 100;
         } 
         else {
-            totalLiquidityPositions = (totalLiquidityPositions * _amountERC20Token) / contractERC20TokenBalance;
+            // calculated method
+            toGive = (totalLiquidityPositions * _amountERC20Token) / contractERC20TokenBalance;
+            // increment total
+            totalLiquidityPositions += toGive;
         }
+
+        // save liquidity of the sender
+        liquidityPositions[msg.sender] = liquidityPositions[msg.sender] + toGive;
 
 
 
@@ -59,6 +78,8 @@ contract Exchange {
         contractERC20TokenBalance += _amountERC20Token; // new contract ERCBalance
 
         K += (contractEthBalance * contractERC20TokenBalance);
+
+        emit LiquidityProvided(_amountERC20Token, msg.value, toGive);
 
         return totalLiquidityPositions;
 
@@ -96,22 +117,29 @@ contract Exchange {
     */
 
     function withdrawLiquidity(uint _liquidityPositionsToBurn) public returns (uint, uint) {
+        require( _liquidityPositionsToBurn <= totalLiquidityPositions, "Unable to burn all liquidity"); // Caller shouldn’t be able to give up all the liquidity positions in the pool
+        require(_liquidityPositionsToBurn <= liquidityPositions[msg.sender], "Unable to burn more than owned");
         uint amountEthToSend;
         uint amountERC20ToSend;
-
-        require( _liquidityPositionsToBurn <= totalLiquidityPositions, "Unable to burn all liquidity"); // Caller shouldn’t be able to give up all the liquidity positions in the pool
 
         amountEthToSend = (_liquidityPositionsToBurn * contractEthBalance) / totalLiquidityPositions;
         amountERC20ToSend = (_liquidityPositionsToBurn * contractERC20TokenBalance) / totalLiquidityPositions;
 
+
+
+        contractEthBalance -= amountEthToSend; // decrement eth to send
+        amountERC20ToSend -= amountERC20ToSend; // decrement erc 20 to send
         
         // State is updated before payments to prevent re-entrancy
+        liquidityPositions[msg.sender] = liquidityPositions[msg.sender] - _liquidityPositionsToBurn;
         totalLiquidityPositions -= _liquidityPositionsToBurn; // Decrement the caller’s liquidity positions and the total liquidity positions
-        K += (contractEthBalance * contractERC20TokenBalance); // update k
+        K = (contractEthBalance * contractERC20TokenBalance); // update k
 
         // Transfer Ether from contract to caller
         payable(msg.sender).transfer(amountEthToSend); 
         require( token.transferFrom(address(this), msg.sender, amountERC20ToSend), "Unable to send ERC20" ); 
+
+        emit LiquidityWithdrew(amountERC20ToSend, amountEthToSend, _liquidityPositionsToBurn);
 
         return (amountEthToSend, amountERC20ToSend);
     }
@@ -151,7 +179,7 @@ contract Exchange {
 
         payable(msg.sender).transfer(ethToSend);
 
-
+        emit SwapForEth(_amountERC20Token, ethToSend);
 
         return ethToSend;
     }
@@ -191,6 +219,8 @@ contract Exchange {
 
         // send erc20
         require( token.transferFrom(address(this), msg.sender, ERC20TokenToSend));
+
+        emit SwapForERC20Token(ERC20TokenToSend, msg.value);
 
         return ERC20TokenToSend;
 
