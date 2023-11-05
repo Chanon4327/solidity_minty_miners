@@ -79,6 +79,21 @@ contract Exchange {
     function estimateERC20TokenToProvide(uint _amountEth) public view returns (uint t) {
         return ( contractERC20TokenBalance *  _amountEth )/contractEthBalance;
     }
+    /*  
+    – Caller gives up some of their liquidity positions and receives some Ether and ERC20 tokens in
+    return.
+    Use the above to get
+    amountEthToSend = liquidityPositionsToBurn*contractEthBalance / totalLiquidityPositions
+    and
+    amountERC20ToSend =
+        liquidityPositionsToBurn * contractERC20TokenBalance / totalLiquidityPositions
+    – Decrement the caller’s liquidity positions and the total liquidity positions
+    – Caller shouldn’t be able to give up more liquidity positions than they own
+    – Caller shouldn’t be able to give up all the liquidity positions in the pool
+    – Update K: K = newContractEthBalance * newContractERC20TokenBalance
+    – Transfer Ether and ERC-20 from contract to caller
+    – Return 2 uints, the amount of ERC20 tokens sent and the amount of Ether sent
+    */
 
     function withdrawLiquidity(uint _liquidityPositionsToBurn) public returns (uint, uint) {
         uint amountEthToSend;
@@ -89,12 +104,14 @@ contract Exchange {
         amountEthToSend = (_liquidityPositionsToBurn * contractEthBalance) / totalLiquidityPositions;
         amountERC20ToSend = (_liquidityPositionsToBurn * contractERC20TokenBalance) / totalLiquidityPositions;
 
-        // Transfer Ether from contract to caller
-        require( token.transferFrom(address(this), msg.sender, amountEthToSend) ); 
-        require( token.transferFrom(address(this), msg.sender, amountERC20ToSend) ); 
-    
+        
+        // State is updated before payments to prevent re-entrancy
         totalLiquidityPositions -= _liquidityPositionsToBurn; // Decrement the caller’s liquidity positions and the total liquidity positions
         K += (contractEthBalance * contractERC20TokenBalance); // update k
+
+        // Transfer Ether from contract to caller
+        payable(msg.sender).transfer(amountEthToSend); 
+        require( token.transferFrom(address(this), msg.sender, amountERC20ToSend), "Unable to send ERC20" ); 
 
         return (amountEthToSend, amountERC20ToSend);
     }
@@ -137,5 +154,56 @@ contract Exchange {
 
 
         return ethToSend;
+    }
+
+    /* 
+    -estimates the amount of Ether to give caller based on amount ERC20 token caller wishes to swap
+    for when a user wants to know how much Ether to expect when calling swapForEth
+    – hint: ethToSend = contractEthBalance-contractEthBalanceAfterSwap where contractEthBalanceAfterSwap = K/contractERC20TokenBalanceAfterSwap
+    – Return a uint of the amount of Ether caller would receive*/
+    function estimateSwapForEth(uint _amountERC20Token) public view returns (uint) {
+        return (contractEthBalance-(K / (contractERC20TokenBalance - _amountERC20Token)));
+    }
+
+    /*
+    Caller deposits some Ether in return for some ERC20 tokens
+    – hint: ERC20TokenToSend = contractERC20TokenBalance - contractERC20TokenBalanceAfterSwap
+        where contractERC20TokenBalanceAfterSwap = K /contractEthBalanceAfterSwap
+    – Transfer Ether from caller to contract
+    – Transfer ERC-20 tokens from contract to caller
+    – Return a uint of the amount of ERC20 tokens sent
+    */
+    function swapForERC20Token() public payable  returns (uint) {
+        require(msg.value > 0, "Wei cannot be equal to or less than 0");
+
+        // add ether to bal
+        contractEthBalance += msg.value;
+
+
+
+        // calculate token to send
+        uint contractERC20TokenBalanceAfterSwap = K / contractEthBalance;
+        uint ERC20TokenToSend = contractERC20TokenBalance - contractERC20TokenBalanceAfterSwap;
+
+
+        // update erc20 balance
+        contractERC20TokenBalance = contractERC20TokenBalanceAfterSwap;
+
+        // send erc20
+        require( token.transferFrom(address(this), msg.sender, ERC20TokenToSend));
+
+        return ERC20TokenToSend;
+
+    }
+    /*
+    – estimates the amount of ERC20 token to give caller based on amount Ether caller wishes to
+        swap for when a user wants to know how many ERC-20 tokens to expect when calling swapForERC20Token
+    – hint: ERC20TokenToSend = contractERC20TokenBalance - contractERC20TokenBalanceAfterSwap
+        where contractERC20TokenBalanceAfterSwap = K /contractEthBalanceAfterSwap
+    – Return a uint of the amount of ERC20 tokens caller would receive
+    */
+
+    function estimateSwapForERC20Token(uint _amountEth) public view returns (uint) {
+        return contractERC20TokenBalance - (K / (contractEthBalance - _amountEth));
     }
 }
