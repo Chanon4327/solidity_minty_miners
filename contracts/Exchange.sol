@@ -42,6 +42,9 @@ contract Exchange {
     function provideLiquidity(uint _amountERC20Token) public payable returns  (uint) {
 
 
+    require( token.transferFrom(msg.sender, address(this), _amountERC20Token), "Unable to recieve ERC20" ); // recieve erc-20
+
+    // to precent re-entrancy, state changes are made after $$$
         if (totalLiquidityPositions == 0) {
             totalLiquidityPositions = 100;
         } 
@@ -53,7 +56,6 @@ contract Exchange {
 
         contractEthBalance += msg.value; // new contract EthBalance
 
-        require( token.transferFrom(msg.sender, address(this), _amountERC20Token) ); // recieve erc-20
         contractERC20TokenBalance += _amountERC20Token; // new contract ERCBalance
 
         K += (contractEthBalance * contractERC20TokenBalance);
@@ -62,9 +64,8 @@ contract Exchange {
 
     }
 
-    function estimateEthToProvide(uint _amountERC20Token) public returns (uint) {
-        uint amountETH = contractEthBalance * _amountERC20Token/contractERC20TokenBalance;
-        return amountETH;
+    function estimateEthToProvide(uint _amountERC20Token) public view returns (uint) {
+        return contractEthBalance * _amountERC20Token/contractERC20TokenBalance;
     }
     /*
     – Users who want to provide liquidity won’t know the current ratio of the tokens in the contract so
@@ -83,7 +84,7 @@ contract Exchange {
         uint amountEthToSend;
         uint amountERC20ToSend;
 
-        require( _liquidityPositionsToBurn <= totalLiquidityPositions); // Caller shouldn’t be able to give up all the liquidity positions in the pool
+        require( _liquidityPositionsToBurn <= totalLiquidityPositions, "Unable to burn all liquidity"); // Caller shouldn’t be able to give up all the liquidity positions in the pool
 
         amountEthToSend = (_liquidityPositionsToBurn * contractEthBalance) / totalLiquidityPositions;
         amountERC20ToSend = (_liquidityPositionsToBurn * contractERC20TokenBalance) / totalLiquidityPositions;
@@ -103,4 +104,36 @@ contract Exchange {
         // Return the liquidity position of the caller
         return liquidityPositions[msg.sender];
     }
+
+    /* swapForEth(uint _amountERC20Token)
+    – Caller deposits some ERC20 token in return for some Ether
+    – hint: ethToSend = contractEthBalance - contractEthBalanceAfterSwap
+    where contractEthBalanceAfterSwap = K / contractERC20TokenBalanceAfterSwap
+    – Transfer ERC-20 tokens from caller to contract
+    – Transfer Ether from contract to caller
+    – Return a uint of the amount of Ether sent
+    */
+    function swapForEth(uint _amountERC20Token) public returns (uint) {
+        // get erc20 from caller
+        require ( token.transferFrom(msg.sender, address(this), _amountERC20Token), "Unable to recieve ERC20" );
+
+        // state changes
+        contractERC20TokenBalance += _amountERC20Token;
+        uint contractEthBalanceAfterSwap = K / contractERC20TokenBalance;
+        uint ethToSend = contractEthBalance - contractEthBalanceAfterSwap;
+
+        // withdrawing $$$
+
+        // update ethbalance before withdrawal, prevent re-entracy
+        contractEthBalance = contractEthBalanceAfterSwap;
+
+
+        payable(msg.sender).transfer(ethToSend);
+
+
+
+        return ethToSend;
+    }
+
+
 }
