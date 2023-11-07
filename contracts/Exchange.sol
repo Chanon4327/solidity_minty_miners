@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.7;
+pragma solidity ^0.8.20;
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
-import "./AsaToken.sol";
-import "./HawKoin.sol";
-import "./KorthCoin.sol";
+// import "./AsaToken.sol";
+// import "./HawKoin.sol";
+// import "./KorthCoin.sol";
 
 contract Exchange {
 
@@ -20,12 +20,12 @@ contract Exchange {
     event LiquidityWithdrew(uint amountERC20TokenWithdrew, uint amountEthWithdrew, uint liquidityPositionsBurned);
     event SwapForEth(uint amountERC20TokenDeposited, uint amountEthWithdrew);
     event SwapForERC20Token(uint amountERC20TokenWithdrew, uint amountEthDeposited);
-
-
+    
     constructor(address _erc20token) {
         owner = msg.sender;
         token = ERC20(_erc20token);
     }
+
 
     uint totalLiquidityPositions = 0;
     uint contractERC20TokenBalance = 0; // to store ERC20
@@ -97,8 +97,8 @@ contract Exchange {
     Use the above to get amountERC20 =
     contractERC20TokenBalance * amountEth/contractEthBalance)
     */
-    function estimateERC20TokenToProvide(uint _amountEth) public view returns (uint t) {
-        return ( contractERC20TokenBalance *  _amountEth )/contractEthBalance;
+    function estimateERC20TokenToProvide(uint _amountEth) public view returns (uint) {
+        return (contractERC20TokenBalance * _amountEth ) / contractEthBalance;
     }
     /*  
     – Caller gives up some of their liquidity positions and receives some Ether and ERC20 tokens in
@@ -232,8 +232,14 @@ contract Exchange {
         where contractERC20TokenBalanceAfterSwap = K /contractEthBalanceAfterSwap
     – Return a uint of the amount of ERC20 tokens caller would receive
     */
-
     function estimateSwapForERC20Token(uint _amountEth) public view returns (uint) {
-        return contractERC20TokenBalance - (K / (contractEthBalance - _amountEth));
+        uint contractEthBalanceAfterSwap = contractEthBalance - _amountEth;
+        require(contractEthBalanceAfterSwap > 0, "avoid division by 0");
+        require(K > 0, "avoid division by 0");
+        uint contractERC20TokenBalanceAfterSwap = K / contractEthBalanceAfterSwap;
+        uint ERCTokenToSend = contractERC20TokenBalance - contractERC20TokenBalanceAfterSwap;
+        return ERCTokenToSend;
     }
 }
+
+
